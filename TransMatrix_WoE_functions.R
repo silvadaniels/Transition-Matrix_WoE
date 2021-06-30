@@ -13,6 +13,8 @@
   library(sp)
   library(rgdal)
   library(gstat)
+    
+  library(dplyr)
   
   lulc00 = raster("sample_mapb2000.tif")
     rcl <- matrix(c(3,1, 13,1, 15,2, 19,2, 24,3, 33, 4), ncol=2, byrow=TRUE) #1=veg, 2=agric, 3=urban, 4=water
@@ -113,12 +115,29 @@
       
 # 3. LULC allocation (predict) ####
   # for the LU allocation, combine WoE and transition matrix probabilities
-    # gross rate of def: rowSums(tm)[1]*tp[1,2] = 51384 pts from 2000 to 2018
-    
-        #NOTE: if (sum of gDef is <"estimate") {for(max prob values, 1);  else=NA}
-        
+    # i.e., gross rate of def is rowSums(tm)[1]*tp[2,1] = 39836 pts from 2000 to 2018
+      luc = s %>%
+        slice_max(prob,n=rowSums(tm)[1]*tp[2,1], with_ties=F)  %>%
+        mutate(luc=1)
+      
+      lchange = rasterize(luc[,1:2], terrain, field=luc$luc)
+        plot(lchange, col="Red")
+      
+      # checking real def occurrence
+        c_def = subset(s, lulc00==1 & lulc18==2)
+          c_def$def = c_def$lulc18-c_def$lulc00 #just for checking with: table(c_def$def)
+        def_pos = rasterize(c_def[,1:2], terrain, field=c_def$def)
+          plot(def_pos, col="Red")
+      
+      # matching def rate and spatial distribution
+      count(luc)/count(c_def) # our estimate is 75% higher than deforestation
+      crosstab(lchange, def_pos)/count(c_def) # 73% of accuracy in the distribution, but doesn't count false-positives
+      
+      # Replicate for regrowth
+      
+      
 # 4. Tests with logit ####
-    # Call the binary df from WoE section
+    # Call the binary df from WoE section; it helps with thr R2 for this estimates (i.e., 10%, which is not the best)
       reg = lm(def ~DEM +as.factor(terrain) +agrDist +roadDist, data = s_def, family = binomial)
       summary(reg)
   
