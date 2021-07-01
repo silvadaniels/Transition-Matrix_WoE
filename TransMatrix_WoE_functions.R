@@ -34,15 +34,21 @@
   # distance raster
       rcl <- matrix(c(1,NA, 2,2, 3,3, 4,4), ncol=2, byrow=TRUE)
       nfRaster <- reclassify(lulc00, rcl) #reclassify the LULC to simply the operations
+        remove(rcl)
     agrDist = distance(nfRaster) #maybe consider urban class too
     
     roadDist = rasterize(roads, DEM)
     roadDist = distance(roadDist)
     
+    hDist = rasterize(hydro, DEM)
+    hDist = distance(hDist)
+    
+    
   # Rasters as data frame
-  s = stack(list(lulc00=lulc00, lulc18=lulc18, DEM=DEM, terrain=terrain,
-                 roadDist=roadDist, agrDist=agrDist))
-  s = as.data.frame(s, xy=TRUE)
+    s = stack(list(lulc00=lulc00, lulc18=lulc18, DEM=DEM, terrain=terrain,
+                   roadDist=roadDist, agrDist=agrDist, hDist=hDist))
+    s = as.data.frame(s, xy=TRUE)
+      s=na.omit(s)
     #rasterToPoints(s) # back to raster
  
 # 1. Transition matrix/probabilities ####
@@ -65,7 +71,7 @@
   # WoE and posterior prob
   IV = create_infotables(data=s_def, y="def", bins=10) # needs to incorporate binary variables as section #4
     IV$Summary #see output; IV is relevant to ranking variables' weight
-    print(IV$Tables$DEM, row.names=FALSE)
+      #print(IV$Tables$DEM, row.names=FALSE)
       
     # 2.1. Posterior probabilities of LC, from WoE ####
       # from veg to agric according to a given variable (i.e., DEM)
@@ -78,6 +84,8 @@
                                           (1+exp(IV$Tables$roadDist[,4]+log(tp[2,1]/(1-tp[2,1]))))
       IV$Tables$agrDist$pagrDist = exp(IV$Tables$agrDist[,4]+log(tp[2,1]/(1-tp[2,1])))/
                                           (1+exp(IV$Tables$agrDist[,4]+log(tp[2,1]/(1-tp[2,1]))))
+      IV$Tables$hDist$phDist = exp(IV$Tables$hDist[,4]+log(tp[2,1]/(1-tp[2,1])))/
+                                        (1+exp(IV$Tables$hDist[,4]+log(tp[2,1]/(1-tp[2,1]))))
       
     # 2.2. Transfer the probabilities to the stack of rasters ####
       s$pDEM = ifelse(s$DEM<114, IV$Tables$DEM[1,6],
@@ -106,8 +114,13 @@
                         ifelse(s$agrDist<421, IV$Tables$agrDist[7,6],
                          ifelse(s$agrDist<1900, IV$Tables$agrDist[9,6], NA
                                 ))))
+      s$pHydro = ifelse(s$hDist<30, IV$Tables$hDist[1,6],
+                      ifelse(s$hDist<35, IV$Tables$hDist[4,6],
+                             ifelse(s$hDist<38, IV$Tables$hDist[7,6],
+                                    ifelse(s$hDist<1900, IV$Tables$hDist[9,6], NA
+                                    ))))
       
-      s$prob = ifelse(s$lulc00==1, rowMeans(s[,9:12], na.rm=TRUE), NA)
+      s$prob = ifelse(s$lulc00==1, rowMeans(s[,10:14], na.rm=TRUE), NA)
         s = na.omit(s)
         
       # Crete a map (raster) of posterior probabilities
@@ -130,8 +143,8 @@
           plot(def_pos, col="Red")
       
       # matching def rate and spatial distribution
-      count(luc)/count(c_def) # our estimate is 75% higher than deforestation
-      crosstab(lchange, def_pos)/count(c_def) # 73% of accuracy in the distribution, but doesn't count false-positives
+      count(luc)/count(c_def) # our estimate is 36% higher than deforestation
+      crosstab(lchange, def_pos)/count(c_def) # 62% of accuracy in the distribution, but doesn't count false-positives
       
       # Replicate for regrowth
       
