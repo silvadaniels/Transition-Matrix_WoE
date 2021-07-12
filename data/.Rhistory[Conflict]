@@ -1,0 +1,43 @@
+#1 transition matrix based on LULC,
+#2 WoE based on variables,
+#3 predict (prob and LU allocation)
+# Notes:
+# data: lulc rasters in t=0 and t=1; explanatory variable (x)
+setwd("/Users/dan/Google Drive/Thesis/Part III drafts - LULC & future climate/WoE in R/sample_LCM")
+# load packages and data ####
+library(raster)
+library(sp)
+library(rgdal)
+library(gstat)
+lulc00 = raster("sample_mapb2000.tif")
+rcl <- matrix(c(3,1, 13,1, 15,2, 19,2, 24,3, 33, 4), ncol=2, byrow=TRUE) #1=veg, 2=agric, 3=urban, 4=water
+lulc00 <- reclassify(lulc00, rcl) #reclassify the LULC to simply the operations
+lulc18 = raster("sample_mapb2018.tif")
+lulc18 <- reclassify(lulc18, rcl)
+remove(rcl)
+DEM = raster("dem.tif")
+plot(DEM, col=topo.colors(6), breaks=c(100, 150, 200, 250, 300, 350), main="Digital Elevation Model")
+lots = readOGR("lots.shp")
+plot(lots, add=T)
+roads = readOGR("main_road.shp")
+plot(roads, add=T, col="red")
+hydro = readOGR("hydrology.shp")
+plot(hydro, add=T, col="blue")
+soils = readOGR("solis_utm.shp")
+rasterize(soils, DEM, field=as.factor(soils$SOIL_ID), filename="terrain", overwrite=T)
+terrain = raster("terrain.grd")
+plot(terrain, col=topo.colors(6))
+# distance raster
+rcl <- matrix(c(1,NA, 2,2, 3,3, 4,4), ncol=2, byrow=TRUE)
+nfRaster <- reclassify(lulc00, rcl) #reclassify the LULC to simply the operations
+agrDist = distance(nfRaster) #maybe consider urban class too
+roadDist = rasterize(roads, DEM)
+roadDist = distance(roadDist)
+# Rasters as data frame
+s = stack(list(lulc00=lulc00, lulc18=lulc18, DEM=DEM, terrain=terrain,
+roadDist=roadDist, agrDist=agrDist))
+s = as.data.frame(s, xy=TRUE)
+#rasterToPoints(s) # back to raster
+# 1. Transition matrix/probabilities ####
+tm = matrix(table(s[,4:3]),ncol = 4) # transition matrix; note in 's[,4:3]' that R read from column to row
+tp = tm/rowSums(tm)

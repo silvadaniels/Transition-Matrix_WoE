@@ -4,10 +4,6 @@
         #2 WoE based on variables, 
         #3 predict (prob and LU allocation)
 
-  # Notes:
-    # data: lulc rasters in t=0 and t=1; explanatory variable (x)
-    setwd("/Users/dan/Google Drive/Thesis/Part III drafts - LULC & future climate/WoE in R/sample_LCM")
-
 # load packages and data ####
   library(raster)
   library(sp)
@@ -16,19 +12,19 @@
     
   library(dplyr)
   
-  lulc00 = raster("sample_mapb2000.tif")
+  lulc00 = raster("data/sample_mapb2000.tif")
     rcl <- matrix(c(3,1, 13,1, 15,2, 19,2, 24,3, 33, 4), ncol=2, byrow=TRUE) #1=veg, 2=agric, 3=urban, 4=water
     lulc00 <- reclassify(lulc00, rcl) #reclassify the LULC to simply the operations
-  lulc18 = raster("sample_mapb2018.tif")
+  lulc18 = raster("data/sample_mapb2018.tif")
     lulc18 <- reclassify(lulc18, rcl)
     remove(rcl)
     
-  DEM = raster("dem.tif")
-  lots = readOGR("lots.shp")
-  roads = readOGR("main_road.shp")
-  soils = readOGR("solis_utm.shp")
-    rasterize(soils, DEM, field=as.factor(soils$SOIL_ID), filename="terrain", overwrite=T)
-    terrain = raster("terrain.grd")
+  DEM = raster("data/dem.tif")
+  lots = readOGR("data/lots.shp")
+  roads = readOGR("data/main_road.shp")
+  soils = readOGR("data/solis_utm.shp")
+    rasterize(soils, DEM, field=as.factor(soils$SOIL_ID), filename="data/terrain", overwrite=T)
+    terrain = raster("data/terrain.grd")
 
   # distance raster
       rcl <- matrix(c(1,NA, 2,2, 3,3, 4,4), ncol=2, byrow=TRUE)
@@ -124,7 +120,7 @@
         s = na.omit(s)
         
       # Crete a map (raster) of posterior probabilities
-      Dp = rasterize(s[,1:2], terrain, field=s$prob, filename="Dprob", overwrite=T)
+      Dp = rasterize(s[,1:2], terrain, field=s$prob, filename="data/Dprob", overwrite=T)
       
 # 3. LULC allocation (predict) ####
   # for the LU allocation, combine WoE and transition matrix probabilities
